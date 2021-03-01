@@ -3,7 +3,7 @@ option go_package = ".;generated";
 
 service GameplayService {
     rpc MakeMoves(MoveRequest) returns (MoveResponse) {}
-    rpc BoardUpdateSubscription(BoardSubscriptionRequst) returns (stream BoardUpdate) {}
+    rpc BoardUpdateSubscription(BoardSubscriptionRequest) returns (stream BoardUpdate) {}
 }
 
 enum Tile {
@@ -23,7 +23,7 @@ message BoardState {
     repeated Tile board = 1;
 }
 
-message BoardSubscriptionRequst {
+message BoardSubscriptionRequest {
     string game_id = 1;
 }
 
