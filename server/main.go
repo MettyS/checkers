@@ -8,7 +8,7 @@ import (
 	"log"
 	"net"
 
-	gppb "github.com/MettyS/checkers/protobuf/game"
+	gppb "github.com/MettyS/checkers/server/generated"
 	"google.golang.org/grpc"
 )
 
@@ -20,11 +20,13 @@ func (s *server) MakeMoves(ctx context.Context, req *gppb.MoveRequest) *gppb.Mov
 	fmt.Println("MakeMoves Running!")
 
 	res := &gppb.MoveResponse{
-		move_success: true,
+		MoveSuccess: true,
 	}
 
 	return res
 }
+
+// BoardUpdateSubscription
 
 // rpc MakeMoves(MoveRequest) returns (MoveResponse) {}
 // rpc BoardUpdateSubscription(BoardSubscriptionRequest) returns (stream BoardUpdate) {}
@@ -38,7 +40,7 @@ func main() {
 
 	checkersServer := grpc.NewServer()
 
-	s := gppb.server{}
+	s := server{}
 	gppb.RegisterGameplayServiceServer(checkersServer, &s)
 
 	if err := checkersServer.Serve(lis); err != nil {
