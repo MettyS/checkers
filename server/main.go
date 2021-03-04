@@ -3,29 +3,18 @@ package main
 //go:generate bash -c "protoc --experimental_allow_proto3_optional --proto_path=../protobuf --go_out=generated/ --go-grpc_out=generated/ $(find ../protobuf -type f -name *.proto)"
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"strconv"
 
-	gppb "github.com/MettyS/checkers/server/generated"
+	pb "github.com/MettyS/checkers/server/generated"
+	"github.com/MettyS/checkers/server/services"
 	"google.golang.org/grpc"
 )
 
 type server struct {
-}
-
-func (s *server) MakeMoves(ctx context.Context, req *gppb.MoveRequest) *gppb.MoveResponse {
-
-	fmt.Println("MakeMoves Running!")
-
-	res := &gppb.MoveResponse{
-		MoveSuccess: true,
-	}
-
-	return res
 }
 
 // BoardUpdateSubscription
@@ -46,8 +35,11 @@ func main() {
 
 	checkersServer := grpc.NewServer()
 
-	//s := server{}
-	//gppb.RegisterGameplayServiceServer(checkersServer, &s)
+	gpService := services.GameplayServer{}
+	pb.RegisterGameplayServiceServer(checkersServer, &gpService)
+
+	gcService := services.GameControlServer{}
+	pb.RegisterGameControlServiceServer(checkersServer, &gcService)
 
 	if err := checkersServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %s", err)
