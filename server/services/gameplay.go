@@ -12,8 +12,8 @@ type GameplayServer struct {
 	pb.UnimplementedGameplayServiceServer
 }
 
-func convertMoveRequestInward(req *pb.MoveRequest) *controller.MoveRequest {
-	domMoveRequest := &controller.MoveRequest{}
+func convertMoveRequestInward(req *pb.MoveRequest) controller.MoveRequest {
+	domMoveRequest := controller.MoveRequest{}
 	domMoveRequest.MoveSet = make([]controller.Move, len(req.GetMoveSet()))
 
 	for _, m := range req.GetMoveSet() {
@@ -26,7 +26,7 @@ func convertMoveRequestInward(req *pb.MoveRequest) *controller.MoveRequest {
 	return domMoveRequest
 }
 
-func convertMoveResponseOutward(res *controller.MoveResponse) *pb.MoveResponse {
+func convertMoveResponseOutward(res controller.MoveResponse) *pb.MoveResponse {
 	pbMoveResponse := pb.MoveResponse{}
 	pbMoveResponse.MoveSuccess = res.MoveSuccess
 	pbMoveResponse.Message = &res.Message
@@ -34,18 +34,53 @@ func convertMoveResponseOutward(res *controller.MoveResponse) *pb.MoveResponse {
 	return &pbMoveResponse
 }
 
+func convertBoardSubscriptionRequestInward(req *pb.BoardSubscriptionRequest) controller.BoardSubscriptionRequest {
+	domBoardSubscriptionRequest := controller.BoardSubscriptionRequest{
+		GameID: req.GetGameId(),
+	}
+
+	return domBoardSubscriptionRequest
+}
+
+func convertBoardUpdateOutward(res controller.BoardUpdate) *pb.BoardUpdate {
+	pbBoardUpdate := pb.BoardUpdate{}
+
+	pbBoard := pb.BoardState{
+		Board: make([]pb.Tile, 32),
+	}
+	for _, t := range res.BoardState.Board {
+		pbBoard.Board = append(pbBoard.Board, pb.Tile(int32(t)))
+	}
+	pbBoardUpdate.BoardState = &pbBoard
+
+	pbMoves := make([]*pb.Move, len(res.PrevMoveSet))
+	for _, m := range res.PrevMoveSet {
+		tempMove := pb.Move{
+			IndexFrom: m.IndexFrom,
+			IndexTo:   m.IndexTo,
+		}
+		pbMoves = append(pbMoves, &tempMove)
+	}
+	pbBoardUpdate.PrevMoveSet = pbMoves
+	return &pbBoardUpdate
+}
+
 // MakeMoves (context.Context, *MoveRequest) (*MoveResponse, error)
 func (s *GameplayServer) MakeMoves(ctx context.Context, req *pb.MoveRequest) (*pb.MoveResponse, error) {
 	domMoveRequest := convertMoveRequestInward(req)
-	// channels may not be best here since only expecting 1 output
-	// I don't think channels are necessary here
-	domMoveResponse := controller.HandleMakeMoves(ctx, domMoveRequest)
+	domMoveResponse, err := controller.HandleMakeMoves(ctx, domMoveRequest)
 
-	return convertMoveResponseOutward(domMoveResponse), nil
+	return convertMoveResponseOutward(domMoveResponse), err
 }
 
 // BoardUpdateSubscription (*BoardSubscriptionRequest, GameplayService_BoardUpdateSubscriptionServer) error
 func (s *GameplayServer) BoardUpdateSubscription(req *pb.BoardSubscriptionRequest, updateStream pb.GameplayService_BoardUpdateSubscriptionServer) error {
-	// updateStream.Send(*BoardUpdate) // returns error
-	return nil
+	domBoardSubscriptionRequest := convertBoardSubscriptionRequestInward(req)
+	domBoardUpdate, err := controller.HandleBoardUpdateSubscription(domBoardSubscriptionRequest)
+
+	if err != nil {
+		return err
+	}
+
+	return updateStream.Send(convertBoardUpdateOutward(domBoardUpdate)) // returns error
 }

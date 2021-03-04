@@ -12,13 +12,13 @@ type GameControlServer struct {
 	pb.UnimplementedGameControlServiceServer
 }
 
-func convertGameStartRequestInward(req *pb.GameStartRequest) *controller.GameStartRequest {
+func convertGameStartRequestInward(req *pb.GameStartRequest) controller.GameStartRequest {
 	domGameStartRequest := controller.GameStartRequest{}
 	domGameStartRequest.GameID = req.GetGameId()
-	return &domGameStartRequest
+	return domGameStartRequest
 }
 
-func convertGameStartResponseOutward(req *controller.GameStartResponse) *pb.GameStartResponse {
+func convertGameStartResponseOutward(req controller.GameStartResponse) *pb.GameStartResponse {
 	pbGameStartResponse := pb.GameStartResponse{}
 	pbGameStartResponse.Message = &req.Message
 
@@ -32,6 +32,6 @@ func convertGameStartResponseOutward(req *controller.GameStartResponse) *pb.Game
 // StartGame (context.Context, *GameStartRequest) (*GameStartResponse, error)
 func (s *GameControlServer) StartGame(ctx context.Context, req *pb.GameStartRequest) (*pb.GameStartResponse, error) {
 	domGameStartRequest := convertGameStartRequestInward(req)
-	domGameStartResponse := controller.HandleStartGame(domGameStartRequest)
-	return convertGameStartResponseOutward(domGameStartResponse), nil
+	domGameStartResponse, err := controller.HandleStartGame(domGameStartRequest)
+	return convertGameStartResponseOutward(domGameStartResponse), err
 }

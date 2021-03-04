@@ -17,11 +17,6 @@ import (
 type server struct {
 }
 
-// BoardUpdateSubscription
-
-// rpc MakeMoves(MoveRequest) returns (MoveResponse) {}
-// rpc BoardUpdateSubscription(BoardSubscriptionRequest) returns (stream BoardUpdate) {}
-
 func main() {
 	port, err := strconv.Atoi(os.Getenv("SERVER_LISTEN_PORT"))
 	if err != nil {
