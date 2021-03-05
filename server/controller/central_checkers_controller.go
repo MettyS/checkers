@@ -5,6 +5,9 @@ import (
 	// "errors"
 )
 
+// BoardSize the size/length of playable board squares stored linearly
+const BoardSize int32 = 32
+
 // Tile typedef for Tile enumeration
 type Tile int32
 

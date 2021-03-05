@@ -46,7 +46,7 @@ func convertBoardUpdateOutward(res controller.BoardUpdate) *pb.BoardUpdate {
 	pbBoardUpdate := pb.BoardUpdate{}
 
 	pbBoard := pb.BoardState{
-		Board: make([]pb.Tile, 32),
+		Board: make([]pb.Tile, controller.BoardSize),
 	}
 	for _, t := range res.BoardState.Board {
 		pbBoard.Board = append(pbBoard.Board, pb.Tile(int32(t)))
@@ -70,7 +70,12 @@ func (s *GameplayServer) MakeMoves(ctx context.Context, req *pb.MoveRequest) (*p
 	domMoveRequest := convertMoveRequestInward(req)
 	domMoveResponse, err := controller.HandleMakeMoves(ctx, domMoveRequest)
 
-	return convertMoveResponseOutward(domMoveResponse), err
+	if err != nil {
+		return nil, err
+	}
+
+	pbMoveResponse := convertMoveResponseOutward(domMoveResponse)
+	return pbMoveResponse, nil
 }
 
 // BoardUpdateSubscription (*BoardSubscriptionRequest, GameplayService_BoardUpdateSubscriptionServer) error
@@ -82,5 +87,6 @@ func (s *GameplayServer) BoardUpdateSubscription(req *pb.BoardSubscriptionReques
 		return err
 	}
 
-	return updateStream.Send(convertBoardUpdateOutward(domBoardUpdate)) // returns error
+	pbBoardUpdate := convertBoardUpdateOutward(domBoardUpdate)
+	return updateStream.Send(pbBoardUpdate) // returns error
 }
