@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/MettyS/checkers/server/controller"
+	d "github.com/MettyS/checkers/server/domain"
 	pb "github.com/MettyS/checkers/server/generated"
-	d "github.com/MettyS/checkers/server/shared"
 )
 
 // GameControlServer server for game control service
@@ -14,9 +14,9 @@ type GameControlServer struct {
 }
 
 func convertGameStartRequestInward(req *pb.GameStartRequest) d.GameStartRequest {
-	domGameStartRequest := d.GameStartRequest{}
-	domGameStartRequest.GameID = req.GetGameId()
-	return domGameStartRequest
+	domainGameStartRequest := d.GameStartRequest{}
+	domainGameStartRequest.GameID = req.GetGameId()
+	return domainGameStartRequest
 }
 
 func convertGameStartResponseOutward(req d.GameStartResponse) *pb.GameStartResponse {
@@ -33,7 +33,7 @@ func convertGameStartResponseOutward(req d.GameStartResponse) *pb.GameStartRespo
 
 // StartGame (context.Context, *GameStartRequest) (*GameStartResponse, error)
 func (s *GameControlServer) StartGame(ctx context.Context, req *pb.GameStartRequest) (*pb.GameStartResponse, error) {
-	domGameStartRequest := convertGameStartRequestInward(req)
-	domGameStartResponse, err := controller.HandleStartGame(domGameStartRequest)
-	return convertGameStartResponseOutward(domGameStartResponse), err
+	domainGameStartRequest := convertGameStartRequestInward(req)
+	domainGameStartResponse, err := controller.HandleStartGame(domainGameStartRequest)
+	return convertGameStartResponseOutward(domainGameStartResponse), err
 }

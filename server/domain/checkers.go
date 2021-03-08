@@ -1,4 +1,14 @@
-package shared
+package domain
+
+// Error domain-level error definition
+type Error struct {
+	Message string
+}
+
+// Error interface required method to implement custom error
+func (d Error) Error() string {
+	return d.Message
+}
 
 // BoardSize the size/length of playable board squares stored linearly
 const BoardSize int32 = 32

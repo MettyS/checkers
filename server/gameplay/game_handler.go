@@ -1,9 +1,7 @@
 package gameplay
 
 import (
-	"fmt"
-
-	d "github.com/MettyS/checkers/server/shared"
+	d "github.com/MettyS/checkers/server/domain"
 )
 
 // Game TODO
@@ -15,9 +13,9 @@ type Game struct {
 }
 
 // AddParticipant add a participant to the game
-func (g *Game) AddParticipant(playerID string) (d.GameRole, string) {
+func (g *Game) AddParticipant(playerID string) (d.GameRole, error) {
 	if player, exists := g.Participants[playerID]; exists {
-		return player, "Player already exists (shouldn't happen with random tokens)"
+		return player, d.Error{Message: "Player already exists (shouldn't happen with random tokens)"}
 	} else if numPlayers := len(g.Participants); numPlayers < 2 {
 		if numPlayers == 0 {
 			player = d.PlayerWhite
@@ -25,11 +23,11 @@ func (g *Game) AddParticipant(playerID string) (d.GameRole, string) {
 			player = d.PlayerBlack
 		}
 		g.Participants[playerID] = player
-		return player, ""
+		return player, nil
 	} else {
 		player = d.Spectator
 		g.Participants[playerID] = player
-		return player, ""
+		return player, nil
 	}
 }
 
@@ -59,23 +57,26 @@ func createDefaultBoard() []d.Tile {
 }
 
 // AttemptMoves validate moves and player and update board state
-func (g *Game) AttemptMoves(playerID string, moves []d.Move) (bool, string) {
+func (g *Game) AttemptMoves(playerID string, moves []d.Move) error {
 	playerRole, exists := g.Participants[playerID]
 	if !exists {
-		return false, "Player not registered in this match."
+		return d.Error{Message: "Player not registered in this match."}
 	}
 	if playerRole == d.Spectator {
-		return false, "Participant is a spectator."
+		return d.Error{Message: "Participant is a spectator."}
 	}
 	if playerID != g.CurrentPlayer {
-		return false, "Player must wait for turn."
+		return d.Error{Message: "Player must wait for turn."}
 	}
 
 	for _, move := range moves {
-		success, message := g.checkMove(playerRole, move)
-		fmt.Printf("%v, %v", success, message)
+		err := g.checkMove(playerRole, move)
+
+		if err != nil {
+			return err
+		}
 	}
-	return false, ""
+	return nil
 }
 
 // moveIsValid(fromIdx: number, toIdx: number): boolean {
@@ -112,17 +113,26 @@ func (g *Game) AttemptMoves(playerID string, moves []d.Move) (bool, string) {
 //     return validTargetOffsets.map((offset) => offset + fromIdx).includes(toIdx);
 //   }
 
-func (g *Game) checkMove(playerRole d.GameRole, move d.Move) (bool, string) {
+func (g *Game) checkMove(playerRole d.GameRole, move d.Move) error {
 	fromTile := g.Board[move.IndexFrom]
 	toTile := g.Board[move.IndexTo]
 
 	if playerRole == d.PlayerWhite && !(fromTile == d.White || fromTile == d.WhitePromoted) {
-		return false, "Player can only move their pieces."
+		return d.Error{Message: "Player can only move their pieces."}
 	}
 
 	if toTile != d.NoPiece {
-		return false, "A piece can only be moved onto an empty tile."
+		return d.Error{Message: "A piece can only be moved onto an empty tile."}
 	}
+
+	// ..00..01..02..03
+	// 04..05..06..07..
+	// ..08..09..10..11
+	// 12..13..14..15..
+	// ..16..17..18..19
+	// 20..21..22..23..
+	// ..24..25..26..27
+	// 28..29..30..31..
 
 	// single step row range:
 	// white, : fromIndex / 4 ) * 4 = top range exclusive
@@ -137,5 +147,5 @@ func (g *Game) checkMove(playerRole d.GameRole, move d.Move) (bool, string) {
 	// black  : specfic squares
 	// spot + 4 || spot + 5 : evenOffset = -1, oddOffset = 0
 
-	return false, ""
+	return nil
 }
