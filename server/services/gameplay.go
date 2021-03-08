@@ -3,8 +3,9 @@ package services
 import (
 	"context"
 
-	controller "github.com/MettyS/checkers/server/controller"
+	"github.com/MettyS/checkers/server/controller"
 	pb "github.com/MettyS/checkers/server/generated"
+	d "github.com/MettyS/checkers/server/shared"
 )
 
 // GameplayServer server for gameplay service
@@ -12,12 +13,14 @@ type GameplayServer struct {
 	pb.UnimplementedGameplayServiceServer
 }
 
-func convertMoveRequestInward(req *pb.MoveRequest) controller.MoveRequest {
-	domMoveRequest := controller.MoveRequest{}
-	domMoveRequest.MoveSet = make([]controller.Move, len(req.GetMoveSet()))
+func convertMoveRequestInward(req *pb.MoveRequest) d.MoveRequest {
+	domMoveRequest := d.MoveRequest{}
+	domMoveRequest.MoveSet = make([]d.Move, len(req.GetMoveSet()))
+	domMoveRequest.GameID = req.GetGameId()
+	domMoveRequest.PlayerID = req.GetPlayerId()
 
 	for _, m := range req.GetMoveSet() {
-		tempMove := controller.Move{
+		tempMove := d.Move{
 			IndexFrom: m.GetIndexFrom(),
 			IndexTo:   m.GetIndexTo(),
 		}
@@ -26,7 +29,7 @@ func convertMoveRequestInward(req *pb.MoveRequest) controller.MoveRequest {
 	return domMoveRequest
 }
 
-func convertMoveResponseOutward(res controller.MoveResponse) *pb.MoveResponse {
+func convertMoveResponseOutward(res d.MoveResponse) *pb.MoveResponse {
 	pbMoveResponse := pb.MoveResponse{}
 	pbMoveResponse.MoveSuccess = res.MoveSuccess
 	pbMoveResponse.Message = &res.Message
@@ -34,19 +37,19 @@ func convertMoveResponseOutward(res controller.MoveResponse) *pb.MoveResponse {
 	return &pbMoveResponse
 }
 
-func convertBoardSubscriptionRequestInward(req *pb.BoardSubscriptionRequest) controller.BoardSubscriptionRequest {
-	domBoardSubscriptionRequest := controller.BoardSubscriptionRequest{
+func convertBoardSubscriptionRequestInward(req *pb.BoardSubscriptionRequest) d.BoardSubscriptionRequest {
+	domBoardSubscriptionRequest := d.BoardSubscriptionRequest{
 		GameID: req.GetGameId(),
 	}
 
 	return domBoardSubscriptionRequest
 }
 
-func convertBoardUpdateOutward(res controller.BoardUpdate) *pb.BoardUpdate {
+func convertBoardUpdateOutward(res d.BoardUpdate) *pb.BoardUpdate {
 	pbBoardUpdate := pb.BoardUpdate{}
 
 	pbBoard := pb.BoardState{
-		Board: make([]pb.Tile, controller.BoardSize),
+		Board: make([]pb.Tile, d.BoardSize),
 	}
 	for _, t := range res.BoardState.Board {
 		pbBoard.Board = append(pbBoard.Board, pb.Tile(int32(t)))

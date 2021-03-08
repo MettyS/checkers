@@ -3,8 +3,9 @@ package services
 import (
 	"context"
 
-	controller "github.com/MettyS/checkers/server/controller"
+	"github.com/MettyS/checkers/server/controller"
 	pb "github.com/MettyS/checkers/server/generated"
+	d "github.com/MettyS/checkers/server/shared"
 )
 
 // GameControlServer server for game control service
@@ -12,19 +13,20 @@ type GameControlServer struct {
 	pb.UnimplementedGameControlServiceServer
 }
 
-func convertGameStartRequestInward(req *pb.GameStartRequest) controller.GameStartRequest {
-	domGameStartRequest := controller.GameStartRequest{}
+func convertGameStartRequestInward(req *pb.GameStartRequest) d.GameStartRequest {
+	domGameStartRequest := d.GameStartRequest{}
 	domGameStartRequest.GameID = req.GetGameId()
 	return domGameStartRequest
 }
 
-func convertGameStartResponseOutward(req controller.GameStartResponse) *pb.GameStartResponse {
+func convertGameStartResponseOutward(req d.GameStartResponse) *pb.GameStartResponse {
 	pbGameStartResponse := pb.GameStartResponse{}
 	pbGameStartResponse.Message = &req.Message
 
 	pbGameStartResponse.GameData = &pb.GameStartRole{
 		PlayerRole: pb.GameRole_SPECTATOR, // TODO
 		GameId:     req.GameData.GameID,
+		PlayerId:   req.GameData.PlayerID,
 	}
 	return &pbGameStartResponse
 }
