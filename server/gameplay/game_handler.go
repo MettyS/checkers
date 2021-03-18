@@ -234,7 +234,7 @@ func (g *Game) isJumpValid(playerRole d.GameRole, move d.Move, moveDir moveDirec
 	return 0, 0, d.Error{Message: "Invalid move attempt."}
 }
 
-func (g *Game) getMoveTypeAndOrientation(playerDir playerDirection, move d.Move) (moveType, moveDirection) {
+func getMoveTypeAndOrientation(playerDir playerDirection, move d.Move) (moveType, moveDirection) {
 	bottomStepLimitF := (int32(move.IndexFrom/d.RowLength) + int32(playerDir)) * int32(d.RowLength)
 	bottomJumpLimitF := bottomStepLimitF + (int32(d.RowLength) * int32(playerDir))
 	indexTo := move.IndexTo
@@ -274,7 +274,7 @@ func (g *Game) checkMove(playerRole d.GameRole, move d.Move) (int32, error) {
 	}
 
 	playerDir := getDirection(playerRole)
-	playerMoveType, playerMoveOrientation := g.getMoveTypeAndOrientation(playerDir, move)
+	playerMoveType, playerMoveOrientation := getMoveTypeAndOrientation(playerDir, move)
 
 	if playerMoveType == invalid {
 		return -1, d.Error{Message: "Invalid move attempt."}
