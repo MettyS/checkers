@@ -128,18 +128,6 @@ func (g *Game) move(m d.Move) {
 	g.Board[m.IndexFrom] = tempTile
 }
 
-// func playerOwnsTile(playerRole d.GameRole, tile d.Tile) bool {
-// 	isWhite := playerRole == d.PlayerWhite
-
-// 	if isWhite && (tile == d.White || tile == d.WhitePromoted) {
-// 		return true
-// 	}
-// 	if !isWhite && (tile == d.Black || tile == d.BlackPromoted) {
-// 		return true
-// 	}
-// 	return false
-// }
-
 func tileIsEnemy(playerRole d.GameRole, tile d.Tile) bool {
 	isWhite := playerRole == d.PlayerWhite
 	if isWhite && (tile == d.Black || tile == d.BlackPromoted) {
@@ -283,19 +271,6 @@ func (g *Game) checkMove(playerRole d.GameRole, move d.Move) (int32, error) {
 	if playerMoveOrientation == backward && !pieceIsPromoted(fromTile) {
 		return -1, d.Error{Message: "Only promoted pieces can move backwards."}
 	}
-
-	if playerMoveType == step {
-
-	}
-
-	// ..00..01..02..03
-	// 04..05..06..07..
-	// ..08..09..10..11
-	// 12..13..14..15..
-	// ..16..17..18..19
-	// 20..21..22..23..
-	// ..24..25..26..27
-	// 28..29..30..31..
 
 	// single step row range:
 	// white, : fromIndex / 4 ) * 4 = top range exclusive
