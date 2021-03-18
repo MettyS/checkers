@@ -192,13 +192,13 @@ func getSteps(playerDir playerDirection, indexFrom uint32, moveDir moveDirection
 	return leftStep, rightStep
 }
 
-func isStepValid(playerDir playerDirection, move d.Move, moveDir moveDirection) (uint32, error) {
+func isStepValid(playerDir playerDirection, move d.Move, moveDir moveDirection) error {
 	leftStep, rightStep := getSteps(playerDir, move.IndexFrom, moveDir)
 
 	if move.IndexTo == uint32(leftStep) || move.IndexTo == uint32(rightStep) {
-		return move.IndexTo, nil
+		return nil
 	}
-	return 0, d.Error{Message: "Invalid move attempt."}
+	return d.Error{Message: "Invalid move attempt."}
 }
 
 func getJumps(playerDir playerDirection, indexFrom uint32, moveDir moveDirection) (int32, int32) {
@@ -207,19 +207,19 @@ func getJumps(playerDir playerDirection, indexFrom uint32, moveDir moveDirection
 	return leftJump, rightJump
 }
 
-func (g *Game) isJumpValid(playerRole d.GameRole, move d.Move, moveDir moveDirection) (uint32, uint32, error) {
+func (g *Game) isJumpValid(playerRole d.GameRole, move d.Move, moveDir moveDirection) (int32, error) {
 	playerDir := getDirection(playerRole)
 	leftStep, rightStep := getSteps(playerDir, move.IndexFrom, moveDir)
 	leftJump, rightJump := getJumps(playerDir, move.IndexFrom, moveDir)
 	if int32(move.IndexTo) == leftJump && tileIsEnemy(playerRole, g.Board[leftStep]) {
-		return move.IndexTo, uint32(leftStep), nil
+		return leftStep, nil
 	}
 
 	if int32(move.IndexTo) == rightJump && tileIsEnemy(playerRole, g.Board[rightStep]) {
-		return move.IndexTo, uint32(rightStep), nil
+		return rightStep, nil
 	}
 
-	return 0, 0, d.Error{Message: "Invalid move attempt."}
+	return -1, d.Error{Message: "Invalid move attempt."}
 }
 
 func getMoveTypeAndOrientation(playerDir playerDirection, move d.Move) (moveType, moveDirection) {
@@ -262,14 +262,22 @@ func (g *Game) checkMove(playerRole d.GameRole, move d.Move) (int32, error) {
 	}
 
 	playerDir := getDirection(playerRole)
-	playerMoveType, playerMoveOrientation := getMoveTypeAndOrientation(playerDir, move)
+	playerMoveType, moveDir := getMoveTypeAndOrientation(playerDir, move)
 
 	if playerMoveType == invalid {
 		return -1, d.Error{Message: "Invalid move attempt."}
 	}
 
-	if playerMoveOrientation == backward && !pieceIsPromoted(fromTile) {
+	if moveDir == backward && !pieceIsPromoted(fromTile) {
 		return -1, d.Error{Message: "Only promoted pieces can move backwards."}
+	}
+
+	if playerMoveType == step {
+		return -1, isStepValid(playerDir, move, moveDir)
+	}
+
+	if playerMoveType == jump {
+		return g.isJumpValid(playerRole, move, moveDir)
 	}
 
 	// single step row range:
