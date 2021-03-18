@@ -14,6 +14,28 @@ type Game struct {
 	Participants  map[string]d.GameRole
 }
 
+type moveDirection int32
+
+const (
+	forward  moveDirection = 1
+	backward moveDirection = -1
+)
+
+type playerDirection int32
+
+const (
+	up   playerDirection = -1
+	down playerDirection = 1
+)
+
+type moveType uint32
+
+const (
+	step moveType = iota
+	jump
+	invalid
+)
+
 // AddParticipant add a participant to the game
 func (g *Game) AddParticipant(playerID string) (d.GameRole, error) {
 	if player, exists := g.Participants[playerID]; exists {
@@ -76,7 +98,7 @@ func (g *Game) AttemptMoves(playerID string, moves []d.Move) error {
 		if pieceIndex != math.MaxUint32 && m.IndexFrom != uint32(pieceIndex) {
 			return d.Error{Message: "Player can only move 1 piece per turn."}
 		}
-		err := g.checkMove(playerRole, m)
+		_, err := g.checkMove(playerRole, m)
 
 		if err != nil {
 			return err
@@ -106,33 +128,164 @@ func (g *Game) move(m d.Move) {
 	g.Board[m.IndexFrom] = tempTile
 }
 
-func playerOwnsTile(playerRole d.GameRole, tile d.Tile) bool {
-	isWhite := playerRole == d.PlayerWhite
+// func playerOwnsTile(playerRole d.GameRole, tile d.Tile) bool {
+// 	isWhite := playerRole == d.PlayerWhite
 
-	if isWhite && (tile == d.White || tile == d.WhitePromoted) {
+// 	if isWhite && (tile == d.White || tile == d.WhitePromoted) {
+// 		return true
+// 	}
+// 	if !isWhite && (tile == d.Black || tile == d.BlackPromoted) {
+// 		return true
+// 	}
+// 	return false
+// }
+
+func tileIsEnemy(playerRole d.GameRole, tile d.Tile) bool {
+	isWhite := playerRole == d.PlayerWhite
+	if isWhite && (tile == d.Black || tile == d.BlackPromoted) {
 		return true
 	}
-	if !isWhite && (tile == d.Black || tile == d.BlackPromoted) {
+	if !isWhite && (tile == d.White || tile == d.WhitePromoted) {
 		return true
 	}
 	return false
 }
 
-func (g *Game) checkMove(playerRole d.GameRole, move d.Move) error {
+func tileIsEmpty(tile d.Tile) bool {
+	return tile == d.NoPiece
+}
 
-	if move.IndexFrom > uint32(d.BoardSize) || move.IndexTo > uint32(d.BoardSize) {
-		return d.Error{Message: "Invalid Tile indices."}
+func pieceIsPromoted(tile d.Tile) bool {
+	return tile == d.WhitePromoted || tile == d.BlackPromoted
+}
+
+func isWhite(playerRole d.GameRole) bool {
+	return playerRole == d.PlayerWhite
+}
+
+func isIndexWithinRow(i uint32, bottomLimit uint32) bool {
+	if bottomLimit <= i && i < uint32(bottomLimit)+d.RowLength {
+		return true
+	}
+	return false
+}
+
+func getRowOffset(playerDir playerDirection, rowIsEven bool) int32 {
+	var evenOddRowOffset int32
+	if playerDir == up {
+		// set offset to 0 if row is even, otherwise set it to 1
+		if evenOddRowOffset = 0; !rowIsEven {
+			evenOddRowOffset = 1
+		}
+	} else {
+		// set offset to -1 if row is even, otherwise set it to 0
+		if evenOddRowOffset = -1; !rowIsEven {
+			evenOddRowOffset = 0
+		}
+	}
+	return evenOddRowOffset
+}
+
+func getDirection(playerRole d.GameRole) playerDirection {
+	if isWhite(playerRole) {
+		return up
+	}
+	return down
+}
+
+func isRowEven(i uint32) bool {
+	return (i/d.RowLength)%2 == 1
+}
+
+func getSteps(playerDir playerDirection, indexFrom uint32, moveDir moveDirection) (int32, int32) {
+	rowOffset := getRowOffset(playerDir, isRowEven(indexFrom))
+	leftStep := int32(indexFrom) + (5 * int32(playerDir) * int32(moveDir)) + rowOffset
+	rightStep := int32(indexFrom) + (4 * int32(playerDir) * int32(moveDir)) + rowOffset
+	return leftStep, rightStep
+}
+
+func isStepValid(playerDir playerDirection, move d.Move, moveDir moveDirection) (uint32, error) {
+	leftStep, rightStep := getSteps(playerDir, move.IndexFrom, moveDir)
+
+	if move.IndexTo == uint32(leftStep) || move.IndexTo == uint32(rightStep) {
+		return move.IndexTo, nil
+	}
+	return 0, d.Error{Message: "Invalid move attempt."}
+}
+
+func getJumps(playerDir playerDirection, indexFrom uint32, moveDir moveDirection) (int32, int32) {
+	leftJump := int32(indexFrom) + (9 * int32(playerDir) * int32(moveDir))
+	rightJump := int32(indexFrom) + (7 * int32(playerDir) * int32(moveDir))
+	return leftJump, rightJump
+}
+
+func (g *Game) isJumpValid(playerRole d.GameRole, move d.Move, moveDir moveDirection) (uint32, uint32, error) {
+	playerDir := getDirection(playerRole)
+	leftStep, rightStep := getSteps(playerDir, move.IndexFrom, moveDir)
+	leftJump, rightJump := getJumps(playerDir, move.IndexFrom, moveDir)
+	if int32(move.IndexTo) == leftJump && tileIsEnemy(playerRole, g.Board[leftStep]) {
+		return move.IndexTo, uint32(leftStep), nil
+	}
+
+	if int32(move.IndexTo) == rightJump && tileIsEnemy(playerRole, g.Board[rightStep]) {
+		return move.IndexTo, uint32(rightStep), nil
+	}
+
+	return 0, 0, d.Error{Message: "Invalid move attempt."}
+}
+
+func (g *Game) getMoveTypeAndOrientation(playerDir playerDirection, move d.Move) (moveType, moveDirection) {
+	bottomStepLimitF := (int32(move.IndexFrom/d.RowLength) + int32(playerDir)) * int32(d.RowLength)
+	bottomJumpLimitF := bottomStepLimitF + (int32(d.RowLength) * int32(playerDir))
+	indexTo := move.IndexTo
+	if isIndexWithinRow(indexTo, uint32(bottomStepLimitF)) {
+		return step, forward
+	} else if isIndexWithinRow(indexTo, uint32(bottomJumpLimitF)) {
+		return jump, forward
+	}
+
+	bottomStepLimitB := (int32(move.IndexFrom/d.RowLength) + (int32(playerDir) * -1)) * int32(d.RowLength)
+	bottomJumpLimitB := bottomStepLimitF + (int32(d.RowLength) * (int32(playerDir) * -1))
+	if isIndexWithinRow(indexTo, uint32(bottomStepLimitB)) {
+		return step, backward
+	} else if isIndexWithinRow(indexTo, uint32(bottomJumpLimitB)) {
+		return jump, backward
+	}
+
+	return invalid, forward
+}
+
+func (g *Game) checkMove(playerRole d.GameRole, move d.Move) (int32, error) {
+
+	if move.IndexFrom > d.BoardSize || move.IndexTo > d.BoardSize ||
+		move.IndexTo < 0 || move.IndexFrom < 0 {
+		return -1, d.Error{Message: "Invalid Tile indices."}
 	}
 
 	fromTile := g.Board[move.IndexFrom]
 	toTile := g.Board[move.IndexTo]
 
-	if !playerOwnsTile(playerRole, fromTile) {
-		return d.Error{Message: "Player can only move their pieces."}
+	if tileIsEnemy(playerRole, fromTile) || tileIsEmpty(fromTile) {
+		return -1, d.Error{Message: "Player can only move their pieces."}
 	}
 
-	if toTile != d.NoPiece {
-		return d.Error{Message: "A piece can only be moved onto an empty tile."}
+	if !tileIsEmpty(toTile) {
+		return -1, d.Error{Message: "A piece can only be moved onto an empty tile."}
+	}
+
+	playerDir := getDirection(playerRole)
+	playerMoveType, playerMoveOrientation := g.getMoveTypeAndOrientation(playerDir, move)
+
+	if playerMoveType == invalid {
+		return -1, d.Error{Message: "Invalid move attempt."}
+	}
+
+	if playerMoveOrientation == backward && !pieceIsPromoted(fromTile) {
+		return -1, d.Error{Message: "Only promoted pieces can move backwards."}
+	}
+
+	if playerMoveType == step {
+
 	}
 
 	// ..00..01..02..03
@@ -143,65 +296,6 @@ func (g *Game) checkMove(playerRole d.GameRole, move d.Move) error {
 	// 20..21..22..23..
 	// ..24..25..26..27
 	// 28..29..30..31..
-	isWhite := playerRole == d.PlayerWhite
-	rowIsEven := (move.IndexFrom/4)%2 == 1
-
-	var evenOddOffset int32
-	var topLimit, bottomLimit uint32
-	var validLeftIndex, validRightIndex int32
-
-	var topLimitJump, bottomLimitJump uint32
-	var validLeftJumpIndex, validRightJumpIndex int32
-	if isWhite {
-		// set offset to 0 if row is even, otherwise set it to 1
-		if evenOddOffset = 0; !rowIsEven {
-			evenOddOffset = 1
-		}
-
-		topLimit = (move.IndexFrom / 4) * 4
-		bottomLimit = ((move.IndexFrom / 4) - 1) * 4
-		validLeftIndex = int32(move.IndexFrom) - 5 + evenOddOffset
-		validRightIndex = int32(move.IndexFrom) - 4 + evenOddOffset
-
-		topLimitJump = bottomLimit
-		bottomLimitJump = ((move.IndexFrom / 4) - 2) * 4
-		validLeftJumpIndex = int32(move.IndexFrom) - 9
-		validRightJumpIndex = int32(move.IndexFrom) - 7
-	} else {
-		// set offset to -1 if row is even, otherwise set it to 0
-		if evenOddOffset = -1; !rowIsEven {
-			evenOddOffset = 0
-		}
-
-		topLimit = ((move.IndexFrom / 4) + 2) * 4
-		bottomLimit = ((move.IndexFrom / 4) + 1) * 4
-		validLeftIndex = int32(move.IndexFrom) + 4 + evenOddOffset
-		validRightIndex = int32(move.IndexFrom) + 5 + evenOddOffset
-
-		topLimitJump = ((move.IndexFrom / 4) + 3) * 4
-		bottomLimitJump = topLimit
-		validLeftJumpIndex = int32(move.IndexFrom) + 7
-		validRightJumpIndex = int32(move.IndexFrom) + 9
-	}
-
-	if move.IndexTo >= bottomLimitJump && move.IndexTo < topLimitJump {
-		if move.IndexTo == uint32(validLeftJumpIndex) && !playerOwnsTile(playerRole, g.Board[validLeftIndex]) &&
-			g.Board[validLeftIndex] != d.NoPiece {
-			return nil
-		}
-		if move.IndexTo == uint32(validRightJumpIndex) && !playerOwnsTile(playerRole, g.Board[validRightIndex]) &&
-			g.Board[validRightIndex] != d.NoPiece {
-			return nil
-		}
-	}
-
-	if move.IndexTo < bottomLimit || move.IndexTo >= topLimit {
-		return d.Error{Message: "Invalid move attempt"}
-	}
-
-	if move.IndexTo != uint32(validLeftIndex) && move.IndexTo != uint32(validRightIndex) {
-		return d.Error{Message: "Invalid move attempt"}
-	}
 
 	// single step row range:
 	// white, : fromIndex / 4 ) * 4 = top range exclusive
@@ -216,5 +310,5 @@ func (g *Game) checkMove(playerRole d.GameRole, move d.Move) error {
 	// black  : specfic squares
 	// spot + 4 || spot + 5 : evenOffset = -1, oddOffset = 0
 
-	return nil
+	return -1, nil
 }
